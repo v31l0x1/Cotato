@@ -915,7 +915,7 @@ static BOOL ExecuteCommand(HANDLE hToken, const wchar_t *cmdLine) {
         return FALSE;
     }
 
-    printf("[+] Process PID %lu – output:\n", pi.dwProcessId);
+    printf("[+] Process PID %lu - output:\n", pi.dwProcessId);
 
     char buf[1024];
     DWORD bytesRead;
